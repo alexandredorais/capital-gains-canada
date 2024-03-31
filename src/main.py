@@ -1,11 +1,11 @@
 from datetime import date, time
 
-from .asset import Stock
+from .asset import Stock, AssetFactory
 
 if __name__ == '__main__':
     
     # initialize stock
-    stock = Stock('SAP SE Stock')
+    stock = AssetFactory.get_instance('SAP SE Stock', Stock)
 
     # make purchases and sales
     stock.purchase(

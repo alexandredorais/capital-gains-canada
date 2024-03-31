@@ -1,4 +1,5 @@
 from datetime import date, time
+from typing import Type
 
 from .transactions import Transaction, TransactionHistory
 from .stats import Statistics
@@ -32,7 +33,20 @@ class Asset:
             self._statistics_up_to_date = True
 
         return self._statistics
+
+class AssetFactory:  # Ensure Assets are singletons (per asset name)
+    _assets: dict[str: Asset]
+
+    @classmethod
+    def get_instance(cls, name: str, asset_cls: Type[Asset]):
+        asset = cls._assets.get(name, None)
+
+        if asset is None:
+            asset = asset_cls(name)  # new Asset
+            cls._assets[name] = asset
         
+        return asset
+
     
 class Stock(Asset):
 
