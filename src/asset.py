@@ -35,7 +35,7 @@ class Asset:
         return self._statistics
 
 class AssetFactory:  # Ensure Assets are singletons (per asset name)
-    _assets: dict[str: Asset]
+    _assets: dict[str: Asset] = {}
 
     @classmethod
     def get_instance(cls, name: str, asset_cls: Type[Asset]):

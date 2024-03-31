@@ -1,6 +1,6 @@
 from datetime import date, time
 
-from ..src.asset import Stock, AssetFactory
+from src.asset import Stock, AssetFactory
 
 if __name__ == '__main__':
     

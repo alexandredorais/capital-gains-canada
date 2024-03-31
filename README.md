@@ -14,6 +14,17 @@ The tool uses the **Adjusted Cost Base** as the cost basis to determine the capi
     - Install requirements.txt
 
 1. Execute main.py
+    - `python main.py`
+
+### Testing
+
+- Execute the test suite with command: 
+    - `pytest`
+
+### Playing with the samples
+
+- Execute a sample (e.g. simple_use_case.py) with command: 
+    - `python -m samples.simple_use_case`
 
 ## Authors
 - Alexandre Dorais
