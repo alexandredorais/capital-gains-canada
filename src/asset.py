@@ -34,11 +34,16 @@ class Asset:
 
         return self._statistics
 
-class AssetFactory:  # Ensure Assets are singletons (per asset name)
+class AssetFactory:  # Ensure Assets are singletons (per asset name & type)
     _assets: dict[str: Asset] = {}
 
     @classmethod
-    def get_instance(cls, name: str, asset_cls: Type[Asset]):
+    def get_instance(cls, name: str):
+        # Force subclasses to implement this method
+        raise NotImplementedError
+
+    @classmethod
+    def _get_instance(cls, name: str, asset_cls: Type[Asset]) -> Asset:
         asset = cls._assets.get(name, None)
 
         if asset is None:
@@ -46,6 +51,10 @@ class AssetFactory:  # Ensure Assets are singletons (per asset name)
             cls._assets[name] = asset
         
         return asset
+    
+    @classmethod
+    def list_assets(cls) -> list[str]:
+        return list(cls._assets.keys())
 
     
 class Stock(Asset):
@@ -55,3 +64,23 @@ class Stock(Asset):
 
     def split(self, date: date, ratio: float) -> None:
         raise NotImplementedError
+
+class StockFactory(AssetFactory):
+    _assets: dict[str: Asset] = {}
+
+    @classmethod
+    def get_instance(cls, name: str) -> Stock:
+        return cls._get_instance(name, Stock)
+
+
+class RealEstate(Asset):
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+class RealEstateFactory(AssetFactory):
+    _assets: dict[str: Asset] = {}
+
+    @classmethod
+    def get_instance(cls, name:str) -> RealEstate:
+        return cls._get_instance(name, RealEstate)
