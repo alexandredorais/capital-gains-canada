@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import date, time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -7,6 +8,7 @@ from .stats import StatsInputs
 
 SALE = 'Sale'
 PURCHASE = 'Purchase'
+SPLIT = 'Split'
 
 class DuplicateError(ValueError):
     pass
@@ -30,6 +32,7 @@ class Transaction:
 class Split:
     date: date
     ratio: float
+    type: str = SPLIT
     time: time = time.min
 
 class TransactionHistory:
@@ -121,3 +124,133 @@ class TransactionHistory:
             for date, sub_list in sub_dict.items():
                 total_len += len(sub_list)
         return total_len
+
+class TransactionFinder: 
+    # useful class e.g. if we want to delete certain transactions from the transaction history,
+    # we can identify them first with TransactionFinder, 
+    # and then delete them with the methods provided by TransactionHistory
+
+    def __init__(self, tx_history: TransactionHistory, tx_type: str):
+        self._tx_history = tx_history
+        self._type = tx_type # SALE / PURCHASE / SPLIT
+        self._year = None
+        self._date = None
+        self._search_parameters = {}
+                                # time
+                                # ratio
+                                # quantity
+                                # unit_price
+                                # closing_costs
+                                # tx_currency
+                                # exch_rate
+                                # target_currency
+    
+    def reset(self):
+        return TransactionFinder(
+            tx_history=self._tx_history,
+            tx_type=self._type
+        )
+
+    def with_year(self, year: date.year) -> TransactionFinder:
+        # year should be handled differently from other search parameters, because it's a dictionary key of TransactionHistory
+        if self._date is not None:
+            assert self._date.year == year, "Date and year must match"
+        self._year = year
+        return self
+
+    def with_date(self, date: date) -> TransactionFinder:
+        # date should be handled differently from other search parameters, because it's a (nested) dictionary key of TransactionHistory
+        if self._year is not None:
+            assert self._year == date.year, "Date and year must match"
+        self._date = date
+        return self
+
+    def with_time(self, time: time) -> TransactionFinder:
+        self._search_parameters["time"] = time
+        return self
+
+    def with_ratio(self, ratio: float) -> TransactionFinder:
+        if self._type != SPLIT:
+            raise NameError(f"Method 'with_ratio' should not be called in this context: transaction type = {self._type}")
+        self._search_parameters["ratio"] = ratio
+        return self
+
+    def with_quantity(self, quantity: float) -> TransactionFinder:
+        self._search_parameters["quantity"] = quantity
+        return self
+
+    def with_unit_price(self, unit_price: float) -> TransactionFinder:
+        self._search_parameters["unit_price"] = unit_price
+        return self
+
+    def with_closing_costs(self, closing_costs: float) -> TransactionFinder:
+        self._search_parameters["closing_costs"] = closing_costs
+        return self
+
+    def with_tx_currency(self, tx_currency: str) -> TransactionFinder:
+        self._search_parameters["tx_currency"] =  tx_currency
+        return self
+
+    def with_exch_rate(self, exch_rate: float) -> TransactionFinder:
+        self._search_parameters["exch_rate"] = exch_rate
+        return self
+
+    def with_target_currency(self, target_currency: str) -> TransactionFinder:
+        self._search_parameters["target_currency"] = target_currency
+        return self
+
+    def find_all(self) -> list[Transaction | Split]:
+        # Set the correct search space based on transaction type
+        if self._type == SALE:
+            search_space = self._tx_history._sales
+        elif self._type == PURCHASE:
+            search_space = self._tx_history._purchases
+        elif self._type == SPLIT:
+            search_space = self._tx_history._splits
+        else:
+            raise ValueError(f"Type '{self._type}' is not allowed.")
+        
+        def flatten_dict_to_list(d):
+            # takes a nested dict and flattens its leaf values into a list
+            items = []
+            for v in d.values():
+                if isinstance(v, dict):
+                    items.extend(flatten_dict_to_list(v))
+                else:
+                    items.extend(v)
+            return items
+        
+        # restrict search space by date and year (if provided)
+        # if date is provided, search inside relevant list
+        if self._date is not None:
+            date_dict = search_space.get(self._date.year)
+            if date_dict is None:
+                return []
+            candidates_list = date_dict.get(self._date)
+            
+        # if date is not provided but year is provided, flatten all date dicts from that year into one list and search inside that list
+        elif self._year is not None:
+            date_dict = search_space.get(self._year)
+            if date_dict is None:
+                return []
+            candidates_list = flatten_dict_to_list(date_dict)
+
+        # if neither date nor year is provided, flatten all dicts from all years into one list and search inside that list
+        else:
+            candidates_list = flatten_dict_to_list(search_space)
+
+        # return early if we have no candidates remaining
+        if candidates_list is None or candidates_list == []:
+            return []
+        
+        # create final list of transactions found
+        transctions_found = []
+        for candidate in candidates_list:
+            successful = True
+            for parameter, expected_value in self._search_parameters.items():
+                # ensure that all search criteria are respected
+                successful = successful and getattr(candidate, parameter) == expected_value
+            if successful:
+                transctions_found.append(candidate)
+        
+        return transctions_found

@@ -1,7 +1,8 @@
 import pytest
+import datetime
 from test.globals import *
 
-from src.transactions import Split, Transaction, TransactionHistory, DuplicateError, SALE, PURCHASE
+from src.transactions import Split, Transaction, TransactionHistory, TransactionFinder, DuplicateError, SALE, PURCHASE, SPLIT
 
 class TestTransaction:
 
@@ -285,3 +286,330 @@ class TestTransaction:
 
         with pytest.raises(KeyError):
             tx_history.remove_split(spl2)
+
+
+@pytest.fixture
+def long_transaction_history():
+
+    tx_history = TransactionHistory()
+    purchases = [
+        Transaction(
+            type= PURCHASE,
+            date= DATE,
+            quantity= QUANTITY,
+            unit_price= UNIT_PRICE,
+            closing_costs= CLOSING_COSTS,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+        ),
+        Transaction(
+            type= PURCHASE,
+            date= DATE,
+            quantity= QUANTITY,
+            unit_price= UNIT_PRICE,
+            closing_costs= CLOSING_COSTS,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+            time=datetime.time(hour=14, minute=12)
+        ),
+        Transaction(
+            type= PURCHASE,
+            date= DATE + datetime.timedelta(days=1),
+            quantity= QUANTITY + 1,
+            unit_price= UNIT_PRICE + 1,
+            closing_costs= CLOSING_COSTS + 1,
+            tx_currency= "USD",
+            exch_rate= 1,
+            target_currency= "USD",
+        ),
+        Transaction(
+            type= PURCHASE,
+            date= DATE + datetime.timedelta(days=366),
+            quantity= QUANTITY + 1,
+            unit_price= UNIT_PRICE + 1,
+            closing_costs= CLOSING_COSTS + 1,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+        ),
+    ]
+
+    sales = [
+        Transaction(
+            type= SALE,
+            date= DATE,
+            quantity= QUANTITY,
+            unit_price= UNIT_PRICE,
+            closing_costs= CLOSING_COSTS,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+        ),
+        Transaction(
+            type= SALE,
+            date= DATE,
+            quantity= QUANTITY,
+            unit_price= UNIT_PRICE,
+            closing_costs= CLOSING_COSTS,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+            time=datetime.time(hour=14, minute=12)
+        ),
+        Transaction(
+            type= SALE,
+            date= DATE + datetime.timedelta(days=1),
+            quantity= QUANTITY + 1,
+            unit_price= UNIT_PRICE + 1,
+            closing_costs= CLOSING_COSTS + 1,
+            tx_currency= "USD",
+            exch_rate= 1,
+            target_currency= "USD",
+        ),
+        Transaction(
+            type= SALE,
+            date= DATE + datetime.timedelta(days=366),
+            quantity= QUANTITY + 1,
+            unit_price= UNIT_PRICE + 1,
+            closing_costs= CLOSING_COSTS + 1,
+            tx_currency= TX_CURRENCY,
+            exch_rate= EXCH_RATE,
+            target_currency= TARGET_CURRENCY,
+        ),
+    ]
+
+    splits = [
+        Split(
+            date= DATE,
+            ratio= RATIO,
+        ),
+        Split(
+            date= DATE,
+            ratio= RATIO,
+            time=datetime.time(hour=14, minute=12)
+        ),
+        Split(
+            date= DATE + datetime.timedelta(days=1),
+            ratio= RATIO,
+        ),
+        Split(
+            date= DATE + datetime.timedelta(days=366),
+            ratio= RATIO,
+        ),
+        Split(
+            date= DATE,
+            ratio= RATIO + 1,
+        ),
+    ]
+
+    for purchase in purchases:
+        tx_history.add_purchase(purchase)
+    for sale in sales:
+        tx_history.add_sale(sale)
+    for split in splits:
+        tx_history.add_split(split)
+
+    return tx_history    
+
+
+class TestTransactionFinderPurchase:
+
+    @classmethod
+    def setup_class(cls):
+        cls.TX_TYPE = PURCHASE
+
+    @pytest.fixture
+    def tx_finder(self, long_transaction_history) -> TransactionFinder:
+        return TransactionFinder(
+            tx_history=long_transaction_history,
+            tx_type=self.TX_TYPE
+        )
+    
+    def test_find_all(self, tx_finder):
+        list_found = tx_finder.find_all()
+        assert len(list_found) == 4
+    
+    def test_reset(self, tx_finder):
+        tx_finder.with_year(2025).find_all()
+        list_found = tx_finder.reset().find_all()
+        assert len(list_found) == 4
+
+    def test_find_by_year(self, tx_finder):
+        list_found = tx_finder.with_year(2024).find_all()
+        assert len(list_found) == 3
+
+    def test_find_by_year_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_year(2026).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_date(self, tx_finder):
+        list_found = tx_finder.with_date(DATE).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_date_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_date(DATE + datetime.timedelta(days=2)).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_time(self, tx_finder):
+        list_found = tx_finder.with_time(datetime.time(hour=14, minute=12)).find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_quantity(self, tx_finder):
+        list_found = tx_finder.with_quantity(QUANTITY + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_unit_price(self, tx_finder):
+        list_found = tx_finder.with_unit_price(UNIT_PRICE + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_closing_costs(self, tx_finder):
+        list_found = tx_finder.with_closing_costs(CLOSING_COSTS + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_tx_currency(self, tx_finder):
+        list_found = tx_finder.with_tx_currency("USD").find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_exch_rate(self, tx_finder):
+        list_found = tx_finder.with_exch_rate(1).find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_target_currency(self, tx_finder):
+        list_found = tx_finder.with_target_currency("USD").find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_multiple_attributes(self, tx_finder):
+        list_found = tx_finder.with_quantity(QUANTITY + 1) \
+            .with_unit_price(UNIT_PRICE + 1) \
+            .with_tx_currency(TX_CURRENCY) \
+            .find_all()
+        assert len(list_found) == 1
+
+
+class TestTransactionFinderSale:
+
+    @classmethod
+    def setup_class(cls):
+        cls.TX_TYPE = SALE
+
+    @pytest.fixture
+    def tx_finder(self, long_transaction_history) -> TransactionFinder:
+        return TransactionFinder(
+            tx_history=long_transaction_history,
+            tx_type=self.TX_TYPE
+        )
+    
+    def test_find_all(self, tx_finder):
+        list_found = tx_finder.find_all()
+        assert len(list_found) == 4
+
+    def test_reset(self, tx_finder):
+        tx_finder.with_year(2025).find_all()
+        list_found = tx_finder.reset().find_all()
+        assert len(list_found) == 4
+
+    def test_find_by_year(self, tx_finder):
+        list_found = tx_finder.with_year(2024).find_all()
+        assert len(list_found) == 3
+
+    def test_find_by_year_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_year(2026).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_date(self, tx_finder):
+        list_found = tx_finder.with_date(DATE).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_date_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_date(DATE + datetime.timedelta(days=2)).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_time(self, tx_finder):
+        list_found = tx_finder.with_time(datetime.time(hour=14, minute=12)).find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_quantity(self, tx_finder):
+        list_found = tx_finder.with_quantity(QUANTITY + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_unit_price(self, tx_finder):
+        list_found = tx_finder.with_unit_price(UNIT_PRICE + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_closing_costs(self, tx_finder):
+        list_found = tx_finder.with_closing_costs(CLOSING_COSTS + 1).find_all()
+        assert len(list_found) == 2
+
+    def test_find_by_tx_currency(self, tx_finder):
+        list_found = tx_finder.with_tx_currency("USD").find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_exch_rate(self, tx_finder):
+        list_found = tx_finder.with_exch_rate(1).find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_target_currency(self, tx_finder):
+        list_found = tx_finder.with_target_currency("USD").find_all()
+        assert len(list_found) == 1
+
+    def test_find_by_multiple_attributes(self, tx_finder):
+        list_found = tx_finder.with_quantity(QUANTITY + 1) \
+            .with_unit_price(UNIT_PRICE + 1) \
+            .with_tx_currency(TX_CURRENCY) \
+            .find_all()
+        assert len(list_found) == 1
+
+
+class TestTransactionFinderSplit:
+    
+    @classmethod
+    def setup_class(cls):
+        cls.TX_TYPE = SPLIT
+
+    @pytest.fixture
+    def tx_finder(self, long_transaction_history) -> TransactionFinder:
+        return TransactionFinder(
+            tx_history=long_transaction_history,
+            tx_type=self.TX_TYPE
+        )
+    
+    def test_find_all(self, tx_finder):
+        list_found = tx_finder.find_all()
+        assert len(list_found) == 5
+
+    def test_reset(self, tx_finder):
+        tx_finder.with_year(2025).find_all()
+        list_found = tx_finder.reset().find_all()
+        assert len(list_found) == 5
+    
+    def test_find_by_year(self, tx_finder):
+        list_found = tx_finder.with_year(2024).find_all()
+        assert len(list_found) == 4
+
+    def test_find_by_year_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_year(2026).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_date(self, tx_finder):
+        list_found = tx_finder.with_date(DATE).find_all()
+        assert len(list_found) == 3
+
+    def test_find_by_date_nonexistent(self, tx_finder):
+        list_found = tx_finder.with_date(DATE + datetime.timedelta(days=2)).find_all()
+        assert len(list_found) == 0
+
+    def test_find_by_time(self, tx_finder):
+        list_found = tx_finder.with_time(datetime.time(hour=14, minute=12)).find_all()
+        assert len(list_found) == 1
+    
+    def test_find_by_ratio(self, tx_finder):
+        list_found = tx_finder.with_ratio(RATIO).find_all()
+        assert len(list_found) == 4
+
+    def test_find_by_multiple_attributes(self, tx_finder):
+        list_found = tx_finder.with_date(DATE) \
+            .with_ratio(RATIO + 1) \
+            .find_all()
+        assert len(list_found) == 1
