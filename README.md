@@ -30,6 +30,7 @@ The tool uses the **Adjusted Cost Base** as the cost basis to determine the capi
 
 - Copy the code to debug into samples/__main__.py
 - Debug samples/__main__.py with the following configuration (.vscode/launch.json):
+```json
 {
     "version": "0.2.0",
     "configurations": [
@@ -41,6 +42,7 @@ The tool uses the **Adjusted Cost Base** as the cost basis to determine the capi
         }
     ]
 }
+```
 
 ## Authors
 - Alexandre Dorais
