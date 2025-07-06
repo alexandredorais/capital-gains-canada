@@ -26,6 +26,22 @@ The tool uses the **Adjusted Cost Base** as the cost basis to determine the capi
 - Execute a sample (e.g. simple_use_case.py) with command: 
     - `python -m samples.simple_use_case`
 
+### Debugging
+
+- Copy the code to debug into samples/__main__.py
+- Debug samples/__main__.py with the following configuration (.vscode/launch.json):
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "samples"
+        }
+    ]
+}
+
 ## Authors
 - Alexandre Dorais
 
