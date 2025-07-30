@@ -4,7 +4,7 @@ import pandas as pd
 
 @dataclass
 class StatsInputs:
-    events: dict[str: pd.DataFrame]
+    events: dict[str, pd.DataFrame]
 
 class Statistics:
 

@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 import datetime
 from test.globals import *
@@ -286,6 +287,59 @@ class TestTransaction:
 
         with pytest.raises(KeyError):
             tx_history.remove_split(spl2)
+    
+    def test_get_data_for_statistics(self, long_transaction_history):
+        stats_input = long_transaction_history.get_data_for_statistics()
+        
+        # stats_input.events: dict[str, pd.DataFrame]
+        df_purchases = stats_input.get(PURCHASE)
+        assert type(df_purchases) == pd.DataFrame
+        assert len(df_purchases) == 4
+        assert (df_purchases.sort_values(['date', 'time']).head(1) == pd.DataFrame([{
+            "type": PURCHASE,
+            "date": DATE,
+            "quantity": QUANTITY,
+            "unit_price": UNIT_PRICE,
+            "closing_costs": CLOSING_COSTS,
+            "tx_currency": TX_CURRENCY,
+            "exch_rate": EXCH_RATE,
+            "target_currency": TARGET_CURRENCY,
+            "time": time.min,
+        }])).all().all()
+        
+        df_sales = stats_input.get(SALE)
+        assert type(df_sales) == pd.DataFrame
+        assert len(df_sales) == 4
+        assert (df_sales.sort_values(['date', 'time']).head(1) == pd.DataFrame([{
+            "type": SALE,
+            "date": DATE,
+            "quantity": QUANTITY,
+            "unit_price": UNIT_PRICE,
+            "closing_costs": CLOSING_COSTS,
+            "tx_currency": TX_CURRENCY,
+            "exch_rate": EXCH_RATE,
+            "target_currency": TARGET_CURRENCY,
+            "time": time.min,
+        }])).all().all()
+        
+        df_splits = stats_input.get(SPLIT)
+        assert type(df_splits) == pd.DataFrame
+        assert len(df_splits) == 5
+        assert (df_splits.sort_values(['date', 'time', 'ratio']).head(1) == pd.DataFrame([{
+            "type": SPLIT,
+            "date": DATE,
+            "ratio": RATIO,
+            "time": time.min,
+        }])).all().all()
+    
+    def test_get_data_for_statistics_empty(self):
+        tx_history = TransactionHistory()
+        stats_input = tx_history.get_data_for_statistics()
+
+        # empty dataframes
+        assert (stats_input.get(PURCHASE) == pd.DataFrame(columns=["type", "date", "quantity", "unit_price", "closing_costs", "tx_currency", "exch_rate", "target_currency", "time"])).all().all()
+        assert (stats_input.get(SALE) == pd.DataFrame(columns=["type", "date", "quantity", "unit_price", "closing_costs", "tx_currency", "exch_rate", "target_currency", "time"])).all().all()
+        assert (stats_input.get(SPLIT) == pd.DataFrame(columns=["type", "date", "ratio", "time"])).all().all()
 
 
 @pytest.fixture

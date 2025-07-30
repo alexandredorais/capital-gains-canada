@@ -10,6 +10,16 @@ SALE = 'Sale'
 PURCHASE = 'Purchase'
 SPLIT = 'Split'
 
+def flatten_dict_to_list(d):
+    # takes a nested dict and flattens its leaf values into a list
+    items = []
+    for v in d.values():
+        if isinstance(v, dict):
+            items.extend(flatten_dict_to_list(v))
+        else:
+            items.extend(v)
+    return items
+
 class DuplicateError(ValueError):
     pass
 
@@ -25,8 +35,25 @@ class Transaction:
     target_currency: str
     time: time = time.min
 
+    @staticmethod
+    def columns():
+        return ["type", "date", "quantity", "unit_price", "closing_costs", "tx_currency", "exch_rate", "target_currency", "time"]
+
     def __post_init__(self):
         assert self.type in [SALE, PURCHASE]
+
+    def to_dict(self):
+        return {
+            "type": self.type,
+            "date": self.date,
+            "quantity": self.quantity,
+            "unit_price": self.unit_price,
+            "closing_costs": self.closing_costs,
+            "tx_currency": self.tx_currency,
+            "exch_rate": self.exch_rate,
+            "target_currency": self.target_currency,
+            "time": self.time,
+        }
 
 @dataclass
 class Split:
@@ -34,6 +61,18 @@ class Split:
     ratio: float
     type: str = SPLIT
     time: time = time.min
+
+    @staticmethod
+    def columns():
+        return ["type", "date", "ratio", "time"]
+
+    def to_dict(self):
+        return {
+            "type": self.type,
+            "date": self.date,
+            "ratio": self.ratio,
+            "time": self.time,
+        }
 
 class TransactionHistory:
 
@@ -73,7 +112,15 @@ class TransactionHistory:
         self._pop_from_dict(self._splits, split)
     
     def get_data_for_statistics(self) -> StatsInputs:
-        raise NotImplementedError
+        sales_dicts = [item.to_dict() for item in flatten_dict_to_list(self._sales)]
+        purchases_dicts = [item.to_dict() for item in flatten_dict_to_list(self._purchases)]
+        splits_dicts = [item.to_dict() for item in flatten_dict_to_list(self._splits)]
+
+        return {
+            SALE: pd.DataFrame(sales_dicts, columns=Transaction.columns()),
+            PURCHASE: pd.DataFrame(purchases_dicts, columns=Transaction.columns()),
+            SPLIT: pd.DataFrame(splits_dicts, columns=Split.columns()),
+        }
     
     def _append_dict(self, attr_dict: dict, new_obj: Transaction | Split) -> None:
         date = new_obj.date
@@ -209,16 +256,6 @@ class TransactionFinder:
             search_space = self._tx_history._splits
         else:
             raise ValueError(f"Type '{self._type}' is not allowed.")
-        
-        def flatten_dict_to_list(d):
-            # takes a nested dict and flattens its leaf values into a list
-            items = []
-            for v in d.values():
-                if isinstance(v, dict):
-                    items.extend(flatten_dict_to_list(v))
-                else:
-                    items.extend(v)
-            return items
         
         # restrict search space by date and year (if provided)
         # if date is provided, search inside relevant list
